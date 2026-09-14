@@ -21,11 +21,11 @@ class VerboseErrorTaskTest {
   }
 
   @Test
-  void triggerShouldLeakTokenInStackTrace() {
+  void triggerShouldNotExposeDiagnosticsOrSecrets() {
     ResponseEntity<String> response = task.triggerError();
 
-    assertThat(response.getStatusCode().is2xxSuccessful()).isTrue();
-    assertThat(response.getBody()).contains(VerboseErrorTask.LEAKED_TOKEN);
+    assertThat(response.getStatusCode()).isEqualTo(org.springframework.http.HttpStatus.INTERNAL_SERVER_ERROR);
+    assertThat(response.getBody()).doesNotContain("SYSTEM_API_TOKEN", "DB_PASSWORD", "java.lang");
   }
 
   @Test
@@ -52,17 +52,16 @@ class VerboseErrorTaskTest {
   }
 
   @Test
-  void configEndpointShouldReturnConfigWhenTokenMatches() {
-    var response = task.fetchConfig(VerboseErrorTask.LEAKED_TOKEN);
-    assertThat(response.getStatusCode().is2xxSuccessful()).isTrue();
-    assertThat(response.getBody()).contains("debug");
+  void configEndpointShouldRemainUnavailableEvenWithFormerToken() {
+    var response = task.fetchConfig("STAGING-TOKEN-42");
+    assertThat(response.getStatusCode()).isEqualTo(org.springframework.http.HttpStatus.FORBIDDEN);
   }
 
   @Test
-  void shouldPassWhenCorrectTokenProvided() {
-    AttackResult result = task.submitToken(VerboseErrorTask.LEAKED_TOKEN);
+  void formerTokenShouldNotSolveAssignment() {
+    AttackResult result = task.submitToken("STAGING-TOKEN-42");
 
-    assertThat(result.assignmentSolved()).isTrue();
-    assertThat(result.getFeedback()).isEqualTo("securitymisconfiguration.task2.success");
+    assertThat(result.assignmentSolved()).isFalse();
+    assertThat(result.getFeedback()).isEqualTo("securitymisconfiguration.task2.failure.invalid");
   }
 }
