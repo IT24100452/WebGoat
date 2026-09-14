@@ -4,15 +4,17 @@ FROM docker.io/eclipse-temurin:25-jdk-noble
 LABEL name="WebGoat: A deliberately insecure Web Application"
 LABEL maintainer="WebGoat team"
 
+ARG WEBGOAT_VERSION=2026.4-SNAPSHOT
+
 RUN \
   apt-get update && \
   apt-get install -y --no-install-recommends curl && \
   rm -rf /var/lib/apt/lists/* && \
   useradd -ms /bin/bash webgoat && \
-  mkdir -p /home/webgoat/.webgoat-2026.2-SNAPSHOT && \
+  mkdir -p /home/webgoat/.webgoat-${WEBGOAT_VERSION} && \
   chgrp -R 0 /home/webgoat && \
   chmod -R g=u /home/webgoat && \
-  chmod 777 /home/webgoat/.webgoat-2026.2-SNAPSHOT
+  chmod 777 /home/webgoat/.webgoat-${WEBGOAT_VERSION}
 
 USER webgoat
 

@@ -3,17 +3,20 @@ services:
     build:
       context: .
       dockerfile: Dockerfile
+      args:
+        WEBGOAT_VERSION: ${WEBGOAT_VERSION:-2026.4-SNAPSHOT}
     image: ie3142-webgoat:${IMAGE_TAG:-local}
-    container_name: ie3142-webgoat
     environment:
       TZ: ${TZ:-Asia/Colombo}
-      WEBGOAT_HOST: ${WEBGOAT_HOST:-www.webgoat.local}
-      WEBWOLF_HOST: ${WEBWOLF_HOST:-www.webwolf.local}
+      # Bind both Spring Boot applications on every container interface. Host
+      # exposure remains restricted to loopback by the ports below.
+      WEBGOAT_HOST: ${WEBGOAT_HOST:-0.0.0.0}
+      WEBWOLF_HOST: ${WEBWOLF_HOST:-0.0.0.0}
     ports:
       - "127.0.0.1:${WEBGOAT_PORT:-8080}:8080"
       - "127.0.0.1:${WEBWOLF_PORT:-9090}:9090"
     volumes:
-      - webgoat-data:/home/webgoat/.webgoat-2026.2-SNAPSHOT
+      - webgoat-data:/home/webgoat/.webgoat-${WEBGOAT_VERSION:-2026.4-SNAPSHOT}
     read_only: true
     tmpfs:
       - /tmp:rw,noexec,nosuid,size=256m
