@@ -9,10 +9,10 @@ RUN \
   apt-get install -y --no-install-recommends curl && \
   rm -rf /var/lib/apt/lists/* && \
   useradd -ms /bin/bash webgoat && \
+  usermod -a -G 0 webgoat && \
   mkdir -p /home/webgoat/.webgoat-2026.2-SNAPSHOT && \
   chgrp -R 0 /home/webgoat && \
-  chmod -R g=u /home/webgoat && \
-  chmod 777 /home/webgoat/.webgoat-2026.2-SNAPSHOT
+  chmod -R g=u /home/webgoat
 
 USER webgoat
 

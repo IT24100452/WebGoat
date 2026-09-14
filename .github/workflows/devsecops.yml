@@ -7,11 +7,6 @@ on:
     branches: [main, develop]
   workflow_dispatch:
 
-permissions:
-  contents: read
-  security-events: write
-  actions: read
-
 concurrency:
   group: devsecops-${{ github.ref }}
   cancel-in-progress: true
@@ -25,6 +20,8 @@ jobs:
     name: Build and unit tests
     runs-on: ubuntu-latest
     timeout-minutes: 35
+    permissions:
+      contents: read
     steps:
       - uses: actions/checkout@v4
         with:
@@ -48,6 +45,8 @@ jobs:
     name: SAST - Semgrep
     runs-on: ubuntu-latest
     timeout-minutes: 20
+    permissions:
+      contents: read
     steps:
       - uses: actions/checkout@v4
       - name: Run Semgrep policy gate
@@ -58,7 +57,9 @@ jobs:
         if: always()
         run: |
           mkdir -p reports
-          docker run --rm -v "$PWD:/src" semgrep/semgrep semgrep --config /src/.semgrep.yml --json --output /src/reports/semgrep.json /src || true
+          docker run --rm -v "$PWD:/src" semgrep/semgrep:1.112.0 \
+            semgrep scan --no-git-ignore --config /src/.semgrep.yml \
+            --json --output /src/reports/semgrep.json /src || true
       - if: always()
         uses: actions/upload-artifact@v4
         with:
@@ -69,6 +70,8 @@ jobs:
     name: Secrets - Gitleaks
     runs-on: ubuntu-latest
     timeout-minutes: 15
+    permissions:
+      contents: read
     steps:
       - uses: actions/checkout@v4
         with:
@@ -77,11 +80,27 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           GITLEAKS_CONFIG: .gitleaks.toml
+      - name: Write Gitleaks report
+        if: always()
+        run: |
+          mkdir -p reports
+          docker run --rm -v "$PWD:/repo" zricethezav/gitleaks:v8.24.2 \
+            detect --no-git --source=/repo --config=/repo/.gitleaks.toml \
+            --report-format sarif --report-path=/repo/reports/gitleaks.sarif --redact
+      - name: Upload Gitleaks report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: gitleaks-report
+          path: reports/gitleaks.sarif
+          if-no-files-found: warn
 
   dependency:
     name: Dependency analysis
     runs-on: ubuntu-latest
     timeout-minutes: 40
+    permissions:
+      contents: read
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-java@v4
@@ -90,7 +109,7 @@ jobs:
           java-version: ${{ env.JAVA_VERSION }}
           cache: maven
       - name: OWASP Dependency-Check
-        run: ./mvnw --batch-mode --no-transfer-progress org.owasp:dependency-check-maven:check -DfailBuildOnCVSS=7 -Dformats=HTML,JSON
+        run: ./mvnw --batch-mode --no-transfer-progress org.owasp:dependency-check-maven:12.1.0:check -DfailBuildOnCVSS=7 -Dformats=HTML,JSON
       - if: always()
         uses: actions/upload-artifact@v4
         with:
@@ -103,6 +122,9 @@ jobs:
     needs: build-test
     runs-on: ubuntu-latest
     timeout-minutes: 40
+    permissions:
+      contents: read
+      security-events: write
     steps:
       - uses: actions/checkout@v4
       - uses: docker/setup-buildx-action@v3
@@ -123,7 +145,7 @@ jobs:
           ignore-unfixed: true
           exit-code: "0"
       - name: Upload SARIF
-        if: always()
+        if: always() && (github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository)
         uses: github/codeql-action/upload-sarif@v3
         with:
           sarif_file: reports-trivy.sarif
