@@ -5,7 +5,6 @@
 package org.owasp.webgoat.lessons.securitymisconfiguration;
 
 import static org.owasp.webgoat.container.assignments.AttackResultBuilder.failed;
-import static org.owasp.webgoat.container.assignments.AttackResultBuilder.success;
 
 import org.apache.commons.lang3.StringUtils;
 import org.owasp.webgoat.container.assignments.AssignmentEndpoint;
@@ -17,16 +16,13 @@ import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.ResponseBody;
 import org.springframework.web.bind.annotation.RestController;
 
-/** Task demonstrating exploitation of default credentials. */
+/** Task demonstrating that default credentials must not be accepted. */
 @RestController
 @AssignmentHints({
     "securitymisconfiguration.task1.hint1",
     "securitymisconfiguration.task1.hint2"
 })
 public class DefaultCredentialsTask implements AssignmentEndpoint {
-
-  private static final String DEFAULT_USERNAME = "admin";
-  private static final String DEFAULT_PASSWORD = "admin";
 
   @PostMapping(
       value = "/SecurityMisconfiguration/task1",
@@ -42,13 +38,7 @@ public class DefaultCredentialsTask implements AssignmentEndpoint {
           .build();
     }
 
-    if (DEFAULT_USERNAME.equals(username.trim()) && DEFAULT_PASSWORD.equals(password)) {
-      return success(this)
-          .feedback("securitymisconfiguration.task1.success")
-          .output("User profile: staging admin (no MFA)")
-          .build();
-    }
-
+    // The application has no built-in account. Credentials must be provisioned externally.
     return failed(this)
         .feedback("securitymisconfiguration.task1.failure.invalid")
         .build();
