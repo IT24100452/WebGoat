@@ -18,7 +18,22 @@ import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
-/** Task exposing verbose stack traces leaking sensitive configuration. */
+/**
+ * Task exposing verbose stack traces leaking sensitive configuration.
+ * 
+ * SECURITY LESSON:
+ * Developers often enable detailed error messages during development for debugging.
+ * However, if these detailed stack traces are shown to users in production,
+ * attackers learn sensitive information like:
+ * - System architecture and technology stack
+ * - Environment variables (passwords, API keys, tokens)
+ * - Database connection strings
+ * - File paths and internal code structure
+ * 
+ * This task demonstrates this vulnerability. Your job is to modify it to:
+ * 1. Return a generic "500 Internal Server Error" instead of details
+ * 2. Log errors securely on the server (not shown to users)
+ */
 @RestController
 @AssignmentHints({
     "securitymisconfiguration.task2.hint1",
@@ -26,10 +41,16 @@ import org.springframework.web.bind.annotation.RestController;
 })
 public class VerboseErrorTask implements AssignmentEndpoint {
 
+  // A staging token that should NEVER be exposed in real applications
   static final String LEAKED_TOKEN = "STAGING-TOKEN-42";
 
   @GetMapping(value = "/SecurityMisconfiguration/task2/trigger", produces = MediaType.TEXT_PLAIN_VALUE)
   public ResponseEntity<String> triggerError() {
+    // SECURITY ISSUE: This returns detailed error information including sensitive data!
+    // Real-world attacks use this information to:
+    // 1. Map the application architecture
+    // 2. Find vulnerabilities in known versions
+    // 3. Extract credentials and configuration
     String stackTrace =
         "2025-03-21 09:42:11,012 ERROR [staging] com.webgoat.DebugController - Null pointer while rendering template\n"
             + "java.lang.NullPointerException: Cannot invoke \"Object.toString()\" because \"ctx" + "\" is null\n"
@@ -48,6 +69,8 @@ public class VerboseErrorTask implements AssignmentEndpoint {
 
   @GetMapping(value = "/SecurityMisconfiguration/task2/config", produces = MediaType.APPLICATION_JSON_VALUE)
   public ResponseEntity<String> fetchConfig(@RequestParam(value = "token", required = false) String token) {
+    // SECURITY ISSUE: This exposes sensitive configuration if the token is known!
+    // Attackers can extract the token from error messages and use it here
     if (LEAKED_TOKEN.equals(token)) {
       String json =
           "{\n"

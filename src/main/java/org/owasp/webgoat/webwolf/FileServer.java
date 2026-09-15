@@ -89,7 +89,16 @@ public class FileServer {
     // https://stackoverflow.com/questions/60336929/java-nio-file-nosuchfileexception-when-file-transferto-is-called
     try (InputStream is = multipartFile.getInputStream()) {
       var originalFilename = multipartFile.getOriginalFilename();
+      // SECURITY FIX: Prevent directory traversal attacks (../, absolute paths, etc.)
+      // 1. resolve() combines the destination directory with the filename
+      // 2. normalize() removes ".." and other path components
+      // 3. Check that the final path is still inside the user's directory
       var destinationFile = destinationDir.toPath().resolve(originalFilename).normalize();
+      
+      // This check prevents attacks like:
+      // - File upload with name: "../../etc/passwd"
+      // - File upload with name: "/etc/passwd"
+      // - File upload with absolute paths
       if (!destinationFile.getParent().equals(destinationDir.toPath().toAbsolutePath())
           && !destinationFile.getParent().equals(destinationDir.toPath())) {
         log.warn("Rejected upload with path component from {}", username);

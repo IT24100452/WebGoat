@@ -164,17 +164,27 @@ public class JWTToken {
   private static boolean validateWithJwks(String jwksJson, String jwt) {
     try {
       JsonWebKeySet jsonWebKeySet = new JsonWebKeySet(jwksJson);
+      // SECURITY FIX: Validate JWT using JSON Web Key Set (JWKS)
+      // The resolver is a custom function that:
+      // 1. Extracts the "kid" (key ID) from the JWT header
+      // 2. Verifies that a kid is present (if missing, reject the token)
+      // 3. Finds the matching key in the JWKS
+      // 4. Rejects tokens with no matching key
       VerificationKeyResolver resolver =
           (JsonWebSignature jws, List<JsonWebStructure> nestingContext) -> {
             String keyId = jws.getKeyIdHeaderValue();
+            // SECURITY CHECK 1: Require a key ID
+            // Without this, an attacker could try keys until one works
             if (!hasText(keyId)) {
               throw new UnresolvableKeyException("JWT does not specify a key id");
             }
+            // SECURITY CHECK 2: Only accept keys that match the token's key ID
             for (JsonWebKey jwk : jsonWebKeySet.getJsonWebKeys()) {
               if (keyId.equals(jwk.getKeyId())) {
                 return jwk.getKey();
               }
             }
+            // SECURITY CHECK 3: Reject if no matching key found
             throw new UnresolvableKeyException("No matching key in JWKS");
           };
 
